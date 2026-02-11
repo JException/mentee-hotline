@@ -16,6 +16,8 @@ const MessageSchema = new Schema(
       required: [true, "Message content cannot be empty"],
       trim: true, // Removes whitespace from start/end
     },
+    isPinned: { type: Boolean, default: false }, // ADD THIS
+    
     isRead: {
       type: Boolean,
       default: false,

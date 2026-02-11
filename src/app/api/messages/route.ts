@@ -44,3 +44,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    await connectToDB();
+    const { messageId, isPinned } = await req.json();
+    const updated = await Message.findByIdAndUpdate(messageId, { isPinned }, { new: true });
+    return NextResponse.json(updated);
+  } catch (err) {
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+  }
+}
