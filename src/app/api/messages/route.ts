@@ -1,57 +1,61 @@
 import { NextResponse } from "next/server";
-import Message from "@/src/models/Message";
 import connectToDB from "@/src/lib/db";
+import Message from "@/src/models/Message"; // Ensure your Model path is correct
+
+// GET: Fetch messages for a specific group
 export async function GET(req: Request) {
   await connectToDB();
+  const { searchParams } = new URL(req.url);
+  const group = searchParams.get("group");
 
+  if (!group) return NextResponse.json([], { status: 400 });
+
+  const messages = await Message.find({ group: parseInt(group) })
+    .populate("senderId", "name")
+    .sort({ createdAt: 1 }); // Oldest to newest
+
+  return NextResponse.json(messages);
+}
+
+// POST: Send a new message
+export async function POST(req: Request) {
+  await connectToDB();
+  const { senderId, group, content } = await req.json();
+
+  if (!senderId || !content) {
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  }
+
+  const newMessage = await Message.create({ senderId, group, content });
+  return NextResponse.json(newMessage);
+}
+
+// PATCH: Pin/Unpin a message
+export async function PATCH(req: Request) {
+  await connectToDB();
+  const { messageId, isPinned } = await req.json();
+  
+  await Message.findByIdAndUpdate(messageId, { isPinned });
+  return NextResponse.json({ success: true });
+}
+
+// DELETE: Clear chat history (THIS WAS MISSING)
+export async function DELETE(req: Request) {
   try {
-    // Get the group number from the URL (e.g., /api/messages?group=5)
+    await connectToDB();
     const { searchParams } = new URL(req.url);
     const group = searchParams.get("group");
 
     if (!group) {
-      return NextResponse.json({ error: "Group number required" }, { status: 400 });
+      return NextResponse.json({ error: "Group ID required" }, { status: 400 });
     }
 
-    // Only find messages belonging to THIS group
-    const messages = await Message.find({ group: Number(group) })
-      .sort({ createdAt: 1 })
-      .populate("senderId", "name role");
+    // Delete all messages matching this group ID
+    await Message.deleteMany({ group: parseInt(group) });
 
-    return NextResponse.json(messages);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function POST(req: Request) {
-  await connectToDB();
-
-  try {
-    const body = await req.json();
-    
-    // Now we save the group number along with the message
-    const newMessage = await Message.create({
-      senderId: body.senderId,
-      group: body.group, // 👈 New: Save the group!
-      content: body.content,
-    });
-
-    await newMessage.populate("senderId", "name role");
-
-    return NextResponse.json(newMessage, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function PATCH(req: Request) {
-  try {
-    await connectToDB();
-    const { messageId, isPinned } = await req.json();
-    const updated = await Message.findByIdAndUpdate(messageId, { isPinned }, { new: true });
-    return NextResponse.json(updated);
-  } catch (err) {
-    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+    return NextResponse.json({ success: true, message: `Group ${group} cleared.` });
+  } catch (error) {
+    console.error("Delete failed:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

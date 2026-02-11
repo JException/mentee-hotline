@@ -3,14 +3,37 @@ import { NextResponse } from "next/server";
 import connectToDB from "../../../lib/db"; 
 import User from "../../../models/User";
 
-
-// Get all group names
 export async function GET() {
   await connectToDB();
-  const groups = await User.find({ role: "mentee" }).sort({ group: 1 });
-  return NextResponse.json(groups);
+  
+  // FETCH ALL: We need both "mentee" (groups) and "mentor" roles
+  // so the Settings page can find the Mentor profile.
+  const users = await User.find({}).sort({ group: 1 });
+  
+  return NextResponse.json(users);
 }
 
+export async function POST(req: Request) {
+  try {
+    await connectToDB();
+    const body = await req.json();
+
+    // Check if a user with this specific ID already exists
+    if (body._id) {
+      const exists = await User.findById(body._id);
+      if (exists) {
+        return NextResponse.json({ error: "User/Mentor already exists" }, { status: 400 });
+      }
+    }
+
+    // Create the new User (Mentor or Group)
+    const newUser = await User.create(body);
+    return NextResponse.json(newUser);
+  } catch (error) {
+    console.error("Create failed:", error);
+    return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
+  }
+}
 // Update a group name
 export async function PATCH(req: Request) {
   await connectToDB();

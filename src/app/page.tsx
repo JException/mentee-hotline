@@ -23,8 +23,9 @@ export default function Home() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
   
-  // --- CONNECTIVITY STATE ---
-  const [isOnline, setIsOnline] = useState(true);
+  // --- CONNECTIVITY & STATUS STATE ---
+  const [isOnline, setIsOnline] = useState(true); // My own internet connection
+  const [partnerStatus, setPartnerStatus] = useState<"online" | "offline">("offline"); // The other person's status
 
   // --- DATA STATE ---
   const [groupData, setGroupData] = useState<any[]>([]);
@@ -50,10 +51,68 @@ export default function Home() {
   // --- INITIALIZATION ---
   useEffect(() => { 
       fetchGroups(); 
-      setIsOnline(navigator.onLine);
-      window.addEventListener('online', () => setIsOnline(true));
-      window.addEventListener('offline', () => setIsOnline(false));
+      setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
   }, []);
+
+  // --- PARTNER PRESENCE LOGIC ---
+  // This effect scans messages to determine if the "Other Person" is online
+  useEffect(() => {
+    if (!messages || messages.length === 0) {
+        setPartnerStatus("offline");
+        return;
+    }
+
+    const isLookingForMentor = viewMode === "mentee";
+    let status: "online" | "offline" = "offline";
+
+    // Scan messages from newest to oldest
+    const recentMessages = [...messages].reverse();
+
+    for (const msg of recentMessages) {
+        const senderId = msg.senderId?._id || msg.senderId;
+        const content = (msg.content || "").toLowerCase();
+        const isSystem = content.startsWith("_") && content.endsWith("_");
+
+        // IF MENTEE: Look for Mentor activity
+        if (isLookingForMentor) {
+            if (senderId === MENTOR_ID) {
+                if (isSystem) {
+                    if (content.includes("joined")) { status = "online"; break; }
+                    if (content.includes("disconnected") || content.includes("left")) { status = "offline"; break; }
+                } else {
+                    // If they sent a normal message recently, they are online
+                    status = "online";
+                    break;
+                }
+            }
+        } 
+        // IF MENTOR: Look for Student activity
+        else {
+            if (senderId !== MENTOR_ID) { 
+                if (isSystem) {
+                    if (content.includes("joined")) { status = "online"; break; }
+                    if (content.includes("disconnected") || content.includes("left")) { status = "offline"; break; }
+                } else {
+                    status = "online";
+                    break;
+                }
+            }
+        }
+    }
+    setPartnerStatus(status);
+  }, [messages, viewMode]);
+
 
   const sendSystemMessage = async (text: string, userId: string, groupId: number) => {
     if (!isOnline) return; 
@@ -120,9 +179,9 @@ export default function Home() {
   const fetchGroups = async () => {
     try {
       const res = await fetch("/api/groups");
-      if (!res.ok) return; // Good practice to check this too
+      if (!res.ok) return;
       
-      const data = await res.json(); // Read the stream once here
+      const data = await res.json(); 
       
       if (Array.isArray(data)) {
         setGroupData(data);
@@ -258,8 +317,16 @@ export default function Home() {
             <div>
               <h2 className="font-black text-base md:text-lg text-slate-800 tracking-tight leading-none truncate max-w-[150px] md:max-w-none">{currentGroupName}</h2>
               <div className="flex items-center gap-1 mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></span>
-                <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest ${isOnline ? "text-green-600" : "text-red-500"}`}>{isOnline ? "Live Support" : "Offline"}</span>
+                
+                {/* DYNAMIC STATUS INDICATOR */}
+                <span className={`w-1.5 h-1.5 rounded-full ${partnerStatus === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></span>
+                <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest ${partnerStatus === "online" ? "text-green-600" : "text-red-500"}`}>
+                    {viewMode === "mentee" 
+                        ? (partnerStatus === "online" ? "MENTOR IS ONLINE" : "MENTOR IS OFFLINE")
+                        : (partnerStatus === "online" ? "STUDENT ONLINE" : "STUDENT OFFLINE")
+                    }
+                </span>
+
               </div>
             </div>
           </div>
