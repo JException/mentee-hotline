@@ -102,7 +102,7 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
     if (!text || !text.trim()) return;
 
     const replyData = {
-      sender: viewMode === "mentor" ? "Mentor Justine" : "Student", // You might want to pass actual name prop
+      sender: viewMode === "mentor" ? "JJ" : "Student", 
       role: viewMode,
       content: text,
     };
@@ -245,7 +245,7 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
                         {/* FIX: Safe access for length */}
                         {replies.length} replies
                     </span>
-                    <div className="text-slate-300 group-hover:text-indigo-500 transition-colors">
+                    <div className="text-indigo-300 group-hover:text-indigo-500 transition-colors">
                         {expandingTicketId === ticket._id ? "▼" : "▶"}
                     </div>
                 </div>
@@ -276,8 +276,8 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
 
                             <div className={`p-4 rounded-2xl text-sm whitespace-pre-wrap break-words shadow-sm border relative group/reply ${
                                 reply.role === "mentor" 
-                                    ? "bg-indigo-600 text-white border-indigo-600 rounded-tl-none" 
-                                    : "bg-white text-slate-700 border-slate-200 rounded-tr-none"
+                                    ? "bg-white-600 text-black border-slate-600 rounded-tl-none" 
+                                    : "bg-white text-indigo-700 border-indigo-200 rounded-tr-none"
                             }`}>
                                 {reply.content}
                                 
@@ -318,7 +318,7 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
                              )}
                              {(viewMode === "mentor" || ticket.createdBy._id === userId) && (
                                 <button onClick={() => deleteTicket(ticket._id)} className="text-xs font-bold text-red-400 hover:text-red-500 transition-colors">
-                                   Delete Ticket
+                                  ✗ Delete Ticket
                                 </button>
                              )}
                          </div>
