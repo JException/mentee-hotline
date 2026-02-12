@@ -32,34 +32,54 @@ export async function POST(req: Request) {
 
 // For updating status (e.g., marking as RESOLVED)
 export async function PATCH(req: Request) {
+  await connectToDB();
   try {
-    await connectToDB();
-    const { userId, newName, newKey } = await req.json();
+    const body = await req.json();
+    console.log("1. PATCH received body:", body); // <--- DEBUG LOG
 
-    if (!userId) {
-      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    const { ticketId, action } = body; 
+    
+    if (!ticketId) return NextResponse.json({ error: "Ticket ID missing" }, { status: 400 });
+
+    let updateQuery = {};
+
+    // SCENARIO A: Toggle Status
+    if (action === "toggle_status") {
+      const currentTicket = await Ticket.findById(ticketId);
+      const newStatus = currentTicket.status === "OPEN" ? "RESOLVED" : "OPEN";
+      updateQuery = { status: newStatus };
+    } 
+    // SCENARIO B: Add Reply
+    else if (action === "add_reply") {
+      const { reply } = body;
+      console.log("2. Adding reply payload:", reply); // <--- DEBUG LOG
+      
+      // We use $push to add to the array
+      updateQuery = { $push: { replies: reply } };
+    }
+    // SCENARIO C: Delete Reply
+    else if (action === "delete_reply") {
+      const { replyId } = body;
+      updateQuery = { $pull: { replies: { _id: replyId } } };
     }
 
-    // Prepare the update. We only update name and accessKey.
-    // We do NOT touch the email field to avoid unique constraint errors.
-    const updateData: any = {
-      name: newName,
-      accessKey: newKey
-    };
+    console.log("3. Running Update with Query:", JSON.stringify(updateQuery)); // <--- DEBUG LOG
 
-    const updated = await User.findByIdAndUpdate(
-      userId, 
-      { $set: updateData }, // Use $set to be explicit
-      { new: true, runValidators: false } // Disable validators briefly to bypass email checks
-    );
+    const updatedTicket = await Ticket.findByIdAndUpdate(
+      ticketId, 
+      updateQuery, 
+      { returnDocument: 'after' } // Replaces { new: true }
+    ).populate("createdBy", "name");
 
-    if (!updated) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    console.log("4. Update Result (Replies count):", updatedTicket?.replies?.length); // <--- DEBUG LOG
+
+    if (!updatedTicket) {
+        return NextResponse.json({ error: "Ticket not found or update failed" }, { status: 404 });
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(updatedTicket);
   } catch (error: any) {
-    console.error("Detailed Server Error:", error);
+    console.error("SERVER ERROR:", error); // <--- DEBUG LOG
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

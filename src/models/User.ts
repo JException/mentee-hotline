@@ -25,6 +25,8 @@ const UserSchema = new Schema(
       max: 11,
     },
     accessKey: { type: String, default: "1234" },
+
+    lastActiveAt: { type: Date, default: Date.now },
   },
   {
     timestamps: true,

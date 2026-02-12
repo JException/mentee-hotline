@@ -26,6 +26,7 @@ export default function Home() {
   // --- CONNECTIVITY & STATUS STATE ---
   const [isOnline, setIsOnline] = useState(true); // My own internet connection
   const [partnerStatus, setPartnerStatus] = useState<"online" | "offline">("offline"); // The other person's status
+  const [onlineCounts, setOnlineCounts] = useState<Record<number, number>>({}); 
 
   // --- DATA STATE ---
   const [groupData, setGroupData] = useState<any[]>([]);
@@ -65,8 +66,42 @@ export default function Home() {
       };
   }, []);
 
-  // --- PARTNER PRESENCE LOGIC ---
-  // This effect scans messages to determine if the "Other Person" is online
+  // --- HEARTBEAT SYSTEM (TRACK ONLINE USERS) ---
+  useEffect(() => {
+    const sendHeartbeat = async () => {
+      try {
+        const method = userData?._id ? "POST" : "GET";
+        const body = userData?._id ? JSON.stringify({ userId: userData._id }) : undefined;
+        const headers = userData?._id ? { "Content-Type": "application/json" } : undefined;
+
+        const res = await fetch("/api/heartbeat", { method, headers, body });
+        
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            const counts: Record<number, number> = {};
+            data.forEach((user: any) => {
+              if (user.group) {
+                counts[user.group] = (counts[user.group] || 0) + 1;
+              }
+            });
+            setOnlineCounts(counts);
+          } else {
+            setOnlineCounts(data);
+          }
+        }
+      } catch (err) {
+        console.error("Heartbeat failed", err);
+      }
+    };
+
+    sendHeartbeat();
+    const intervalId = setInterval(sendHeartbeat, 5000);
+    return () => clearInterval(intervalId);
+  }, [userData]); 
+
+
+  // --- PARTNER PRESENCE LOGIC (CHAT STATUS) ---
   useEffect(() => {
     if (!messages || messages.length === 0) {
         setPartnerStatus("offline");
@@ -75,8 +110,6 @@ export default function Home() {
 
     const isLookingForMentor = viewMode === "mentee";
     let status: "online" | "offline" = "offline";
-
-    // Scan messages from newest to oldest
     const recentMessages = [...messages].reverse();
 
     for (const msg of recentMessages) {
@@ -84,20 +117,17 @@ export default function Home() {
         const content = (msg.content || "").toLowerCase();
         const isSystem = content.startsWith("_") && content.endsWith("_");
 
-        // IF MENTEE: Look for Mentor activity
         if (isLookingForMentor) {
             if (senderId === MENTOR_ID) {
                 if (isSystem) {
                     if (content.includes("joined")) { status = "online"; break; }
                     if (content.includes("disconnected") || content.includes("left")) { status = "offline"; break; }
                 } else {
-                    // If they sent a normal message recently, they are online
                     status = "online";
                     break;
                 }
             }
         } 
-        // IF MENTOR: Look for Student activity
         else {
             if (senderId !== MENTOR_ID) { 
                 if (isSystem) {
@@ -125,7 +155,7 @@ export default function Home() {
     } catch (e) { console.error("System msg failed", e); }
   };
 
-  // Polling for new messages ONLY if active tab is chat
+  // Polling for new messages
   useEffect(() => {
     if (isAuthorized && appState === "chat" && activeTab === "chat" && isOnline) {
       fetchMessages(); 
@@ -180,9 +210,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/groups");
       if (!res.ok) return;
-      
       const data = await res.json(); 
-      
       if (Array.isArray(data)) {
         setGroupData(data);
       }
@@ -205,18 +233,6 @@ export default function Home() {
     setAppState("dashboard");
     localStorage.setItem("sessionKey", key);
   };
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem("sessionKey");
-    if (savedKey && groupData.length > 0) {
-        const foundGroup = groupData.find(g => g.accessKey === savedKey);
-        if (foundGroup) {
-            handleLoginSuccess(foundGroup, "mentee", foundGroup.group, savedKey);
-        } else if (savedKey === "admin1234") {
-            handleLoginSuccess({ _id: MENTOR_ID, name: "Mentor Justine", role: "mentor" }, "mentor", 1, savedKey);
-        }
-    }
-  }, [groupData]);
 
   const handleEnterChat = () => {
     const currentId = viewMode === "mentor" ? MENTOR_ID : userData?._id;
@@ -276,7 +292,23 @@ export default function Home() {
     fetchMessages();
   };
 
-  // --- HELPERS ---
+  // --- DATE & TIME HELPERS ---
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatDateHeader = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
   const getInitials = (name: string) => name ? name.substring(0, 2).toUpperCase() : "??";
   const currentGroupName = groupData.find(g => g.group === selectedGroup)?.name || `Group ${selectedGroup}`;
 
@@ -301,12 +333,23 @@ export default function Home() {
         </div>
     );
   }
-
+  
+                  const pinnedMessages = messages.filter(m => m.isPinned);
   return (
     <div className="flex h-screen bg-[#F1F5F9] text-slate-900 overflow-hidden font-sans">
       {!isOnline && <div className="absolute top-0 left-0 w-full bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 z-50 animate-pulse">⚠️ No Internet Connection</div>}
 
-      <Sidebar viewMode={viewMode} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} groupData={groupData} userData={userData} selectedGroup={selectedGroup} onSelectGroup={setSelectedGroup} onLogout={handleLogout} />
+      <Sidebar 
+        viewMode={viewMode} 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        groupData={groupData} 
+        userData={userData} 
+        selectedGroup={selectedGroup} 
+        onSelectGroup={setSelectedGroup} 
+        onLogout={handleLogout}
+        onlineCounts={onlineCounts} 
+      />
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative bg-white md:bg-[#F1F5F9]">
         
@@ -317,8 +360,6 @@ export default function Home() {
             <div>
               <h2 className="font-black text-base md:text-lg text-slate-800 tracking-tight leading-none truncate max-w-[150px] md:max-w-none">{currentGroupName}</h2>
               <div className="flex items-center gap-1 mt-0.5">
-                
-                {/* DYNAMIC STATUS INDICATOR */}
                 <span className={`w-1.5 h-1.5 rounded-full ${partnerStatus === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></span>
                 <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest ${partnerStatus === "online" ? "text-green-600" : "text-red-500"}`}>
                     {viewMode === "mentee" 
@@ -326,7 +367,6 @@ export default function Home() {
                         : (partnerStatus === "online" ? "STUDENT ONLINE" : "STUDENT OFFLINE")
                     }
                 </span>
-
               </div>
             </div>
           </div>
@@ -335,6 +375,40 @@ export default function Home() {
               <button onClick={() => setActiveTab("tickets")} className={`px-3 md:px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${activeTab === "tickets" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>TICKETS</button>
           </div>
         </div>
+        
+        {/* PINNED MESSAGES BAR */}
+{activeTab === "chat" && pinnedMessages.length > 0 && (
+  <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-2 flex items-center justify-between z-10 shadow-sm animate-in slide-in-from-top-2">
+    <div className="flex items-center gap-3 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => {
+        // Optional: Logic to scroll to the specific message could go here
+        const id = pinnedMessages[pinnedMessages.length - 1]._id;
+        document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }}>
+      <div className="bg-yellow-100 text-yellow-600 p-1.5 rounded-full shrink-0 text-xs">
+        📌
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-wider">
+          {pinnedMessages.length} Pinned {pinnedMessages.length === 1 ? 'Message' : 'Messages'}
+        </span>
+        <span className="text-xs text-slate-700 truncate font-medium max-w-[250px] md:max-w-md leading-tight">
+          {pinnedMessages[pinnedMessages.length - 1].content}
+        </span>
+      </div>
+    </div>
+    
+    {/* Unpin Button */}
+    <button 
+      onClick={(e) => {
+        e.stopPropagation();
+        togglePin(pinnedMessages[pinnedMessages.length - 1]._id, true);
+      }} 
+      className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-full transition-all"
+    >
+      ✕
+    </button>
+  </div>
+)}
 
         {/* CONTENT AREA */}
         <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
@@ -343,29 +417,54 @@ export default function Home() {
               {messages.map((msg: any, index: number) => {
                   const isMe = msg.senderId._id === (viewMode === "mentor" ? MENTOR_ID : userData?._id);
                   const isSystemMessage = msg.content.startsWith("_") && msg.content.endsWith("_");
+                  
+                  // DATE HEADER LOGIC
+                  const currentDate = msg.createdAt ? new Date(msg.createdAt).toDateString() : null;
+                  const prevDate = index > 0 && messages[index - 1].createdAt ? new Date(messages[index - 1].createdAt).toDateString() : null;
+                  const showDateHeader = currentDate !== prevDate;
 
-                  if (isSystemMessage) {
-                    return (
-                      <div key={msg._id} className="w-full flex flex-col items-center justify-center my-4 animate-in fade-in duration-300">
-                        <div className="bg-slate-100 border border-slate-200 px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-widest shadow-sm">
-                           {msg.content.replace(/_/g, "")}
-                        </div>
-                      </div>
-                    );
-                  }
                   return (
-                    <div key={msg._id} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                        {!isMe && <span className="text-[10px] font-bold text-slate-400 mb-1 ml-1">{msg.senderId.name}</span>}
-                        <div className={`flex items-end gap-2 max-w-[85%] group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                          <div className={`relative px-5 py-3 shadow-sm text-sm leading-relaxed break-all whitespace-pre-wrap ${isMe ? "bg-indigo-600 text-white rounded-[20px] rounded-br-sm" : "bg-white border border-slate-100 text-slate-800 rounded-[20px] rounded-bl-sm"}`}>
-                            {msg.content}
-                            <button onClick={() => togglePin(msg._id, msg.isPinned)} className={`absolute -top-2 ${isMe ? '-left-2' : '-right-2'} opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-white rounded-full shadow-md text-xs border border-slate-100`}>
-                               {msg.isPinned ? '📌' : '📍'}
-                            </button>
+                    <div key={msg._id || index} id={`msg-${msg._id}`}>
+                      {/* --- DATE SEPARATOR --- */}
+                      {showDateHeader && msg.createdAt && (
+                        <div className="w-full flex justify-center my-6">
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                            {formatDateHeader(msg.createdAt)}
+                          </span>
+                        </div>
+                      )}
+
+                      {isSystemMessage ? (
+                        <div className="w-full flex flex-col items-center justify-center my-4 animate-in fade-in duration-300">
+                          <div className="bg-slate-50 border border-slate-100 px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                             {msg.content.replace(/_/g, "")}
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                          <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                            {!isMe && <span className="text-[10px] font-bold text-slate-400 mb-1 ml-1">{msg.senderId.name}</span>}
+                            
+                            <div className={`flex items-end gap-2 max-w-[85%] group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                              <div className={`relative px-4 py-3 shadow-sm text-sm leading-relaxed break-all whitespace-pre-wrap ${isMe ? "bg-indigo-600 text-white rounded-[20px] rounded-br-sm" : "bg-white border border-slate-100 text-slate-800 rounded-[20px] rounded-bl-sm"} ${msg.isPinned ? "ring-2 ring-yellow-400 ring-offset-2" : ""}`}>
+                                
+                                {msg.content}
+                                
+                                {/* --- TIMESTAMP --- */}
+                                <div className={`text-[9px] mt-1 text-right font-medium opacity-70 ${isMe ? "text-indigo-200" : "text-slate-400"}`}>
+                                    {formatTime(msg.createdAt || new Date().toISOString())}
+                                </div>
+
+                                {/* --- PIN BUTTON (UPDATED) --- */}
+                                <button onClick={() => togglePin(msg._id, msg.isPinned)} className={`absolute -top-2 ${isMe ? '-left-2' : '-right-2'} p-1 bg-white rounded-full shadow-md text-xs border border-slate-100 transition-all z-10 ${msg.isPinned ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100'}`}>
+                                   {msg.isPinned ? '📌' : '📍'}
+                                </button>
+
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
