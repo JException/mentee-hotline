@@ -66,7 +66,7 @@ export default function LoginPage({ groupData, isOnline, onLoginSuccess }: Login
         <div className="w-full bg-white/5 backdrop-blur-xl p-8 rounded-[32px] border border-white/10 shadow-2xl ring-1 ring-white/20 animate-in zoom-in-95 duration-500">
           <div className="mb-6 flex items-center gap-3 justify-center text-slate-400">
                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-               <span className="text-xs font-bold uppercase tracking-widest">Secure Access</span>
+               <span className="text-xs font-bold uppercase tracking-widest">ENTER ACCESS CODE</span>
           </div>
           
           <div className="space-y-4">
@@ -95,7 +95,7 @@ export default function LoginPage({ groupData, isOnline, onLoginSuccess }: Login
                 onClick={handleJoin} 
                 className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-indigo-500 transition-all active:scale-95 shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 group"
               >
-                ENTER ROOM
+                ENTER CHAT ROOM
                 <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
               </button>
           </div>

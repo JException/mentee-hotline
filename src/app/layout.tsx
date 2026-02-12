@@ -21,8 +21,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mentee Hotline",
-  description: "Chat with your mentor",
+  title: "JJCP iSupport v2.0",
+  description: "Instant Academic Support",
   manifest: "/manifest.json",
 };
 
