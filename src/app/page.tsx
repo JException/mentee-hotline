@@ -2,54 +2,60 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+
+// --- COMPONENTS ---
 import Sidebar from "@/src/components/Sidebar";
 import LoginPage from "@/src/components/LoginPage";
-import MatrixRain from "@/src/components/MatrixRain";
 import TicketSystem from "@/src/components/TicketSystem";
+// MatrixRain is now inside WelcomeDashboard, so we don't need it here
+import WelcomeDashboard from "@/src/components/dashboard/WelcomeDashboard"; 
+import CalendarView from "@/src/components/chat/CalendarView";
+import ChatInput from "@/src/components/chat/ChatInput";
+import MessageBubble from "@/src/components/chat/MessageBubble";
 
 const MENTOR_ID = "698cadabb0c30fafdfe00cc2"; 
 
 export default function Home() {
-  // --- AUTH & CONFIG STATE ---
+  // ==========================================
+  // 1. STATE DEFINITIONS (These were missing!)
+  // ==========================================
+  
+  // Auth & Config
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [appState, setAppState] = useState<"login" | "dashboard" | "chat">("login");
   const [viewMode, setViewMode] = useState<"mentor" | "mentee">("mentee");
   const [selectedGroup, setSelectedGroup] = useState(1);
   const [userData, setUserData] = useState<any>(null);
 
-  // --- UI STATE ---
+  // UI State
   const [activeTab, setActiveTab] = useState<"chat" | "tickets">("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
   
-  // --- CONNECTIVITY & STATUS STATE ---
-  const [isOnline, setIsOnline] = useState(true); // My own internet connection
-  const [partnerStatus, setPartnerStatus] = useState<"online" | "offline">("offline"); // The other person's status
+  // Connectivity
+  const [isOnline, setIsOnline] = useState(true); 
+  const [partnerStatus, setPartnerStatus] = useState<"online" | "offline">("offline");
   const [onlineCounts, setOnlineCounts] = useState<Record<number, number>>({}); 
 
-  // --- DATA STATE ---
+  // Data
   const [groupData, setGroupData] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
   
-  // --- REAL-TIME SIMULATION STATE ---
+  // Real-time Simulation
   const [isPartnerTyping, setIsPartnerTyping] = useState(false); 
-  const [readReceipts, setReadReceipts] = useState<Record<string, boolean>>({}); 
 
-  // --- REFS ---
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const userRef = useRef({ id: "", group: 1, name: "" });
 
-  // --- EMOJIS ---
-  const emojiCategories = {
-    "Recent": ["😊", "😂", "👍", "🔥", "🙏", "💡"],
-    "Academic": ["📚", "✍️", "🎓", "🧪", "📊", "🧐"],
-    "Status": ["✅", "❌", "⚠️", "⏳", "🚀", "📌"]
-  };
+  // ==========================================
+  // 2. EFFECTS (Logic for loading/updates)
+  // ==========================================
 
-  // --- INITIALIZATION ---
+  // Initialization
   useEffect(() => { 
       fetchGroups(); 
       setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -66,7 +72,7 @@ export default function Home() {
       };
   }, []);
 
-  // --- HEARTBEAT SYSTEM (TRACK ONLINE USERS) ---
+  // Heartbeat System
   useEffect(() => {
     const sendHeartbeat = async () => {
       try {
@@ -100,14 +106,12 @@ export default function Home() {
     return () => clearInterval(intervalId);
   }, [userData]); 
 
-
-  // --- PARTNER PRESENCE LOGIC (CHAT STATUS) ---
+  // Partner Presence
   useEffect(() => {
     if (!messages || messages.length === 0) {
         setPartnerStatus("offline");
         return;
     }
-
     const isLookingForMentor = viewMode === "mentee";
     let status: "online" | "offline" = "offline";
     const recentMessages = [...messages].reverse();
@@ -122,40 +126,21 @@ export default function Home() {
                 if (isSystem) {
                     if (content.includes("joined")) { status = "online"; break; }
                     if (content.includes("disconnected") || content.includes("left")) { status = "offline"; break; }
-                } else {
-                    status = "online";
-                    break;
-                }
+                } else { status = "online"; break; }
             }
-        } 
-        else {
+        } else {
             if (senderId !== MENTOR_ID) { 
                 if (isSystem) {
                     if (content.includes("joined")) { status = "online"; break; }
                     if (content.includes("disconnected") || content.includes("left")) { status = "offline"; break; }
-                } else {
-                    status = "online";
-                    break;
-                }
+                } else { status = "online"; break; }
             }
         }
     }
     setPartnerStatus(status);
   }, [messages, viewMode]);
 
-
-  const sendSystemMessage = async (text: string, userId: string, groupId: number) => {
-    if (!isOnline) return; 
-    try {
-      await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderId: userId, group: groupId, content: `_${text}_` }),
-      });
-    } catch (e) { console.error("System msg failed", e); }
-  };
-
-  // Polling for new messages
+  // Polling
   useEffect(() => {
     if (isAuthorized && appState === "chat" && activeTab === "chat" && isOnline) {
       fetchMessages(); 
@@ -170,10 +155,10 @@ export default function Home() {
 
   // Smart Scroll
   useEffect(() => {
-    if (isAtBottom && activeTab === "chat") {
+    if (isAtBottom && activeTab === "chat" && !dateFilter) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, isPartnerTyping, activeTab]);
+  }, [messages, isPartnerTyping, activeTab, dateFilter]);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -182,7 +167,7 @@ export default function Home() {
     setIsAtBottom(atBottom);
   };
 
-  // Tab Close Cleanup
+  // Cleanup on close
   useEffect(() => {
     userRef.current = {
         id: viewMode === "mentor" ? MENTOR_ID : userData?._id,
@@ -205,15 +190,16 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handleTabClose);
   }, [isAuthorized, appState, isOnline, selectedGroup, userData, viewMode]);
 
-  // --- API CALLS ---
+  // ==========================================
+  // 3. API & HANDLER FUNCTIONS
+  // ==========================================
+
   const fetchGroups = async () => {
     try {
       const res = await fetch("/api/groups");
       if (!res.ok) return;
       const data = await res.json(); 
-      if (Array.isArray(data)) {
-        setGroupData(data);
-      }
+      if (Array.isArray(data)) setGroupData(data);
     } catch (err) { console.error(err); }
   };
 
@@ -224,7 +210,17 @@ export default function Home() {
     } catch (err) { console.error(err); }
   };
 
-  // --- AUTH HANDLERS ---
+  const sendSystemMessage = async (text: string, userId: string, groupId: number) => {
+    if (!isOnline) return; 
+    try {
+      await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senderId: userId, group: groupId, content: `_${text}_` }),
+      });
+    } catch (e) { console.error("System msg failed", e); }
+  };
+
   const handleLoginSuccess = (user: any, mode: "mentor" | "mentee", group: number, key: string) => {
     setUserData(user);
     setViewMode(mode);
@@ -251,10 +247,10 @@ export default function Home() {
     window.location.reload();
   };
 
-  // --- MESSAGING LOGIC ---
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !isOnline) return;
+  // --- UPDATED SEND HANDLER ---
+  const onSendMessageWrapper = async (text: string) => {
+    if (!isOnline) return;
+    if (dateFilter) setDateFilter(null); // Clear filter if active
 
     const currentSenderId = viewMode === "mentor" ? MENTOR_ID : userData?._id;
     setIsAtBottom(true);
@@ -262,21 +258,13 @@ export default function Home() {
     await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ senderId: currentSenderId, group: selectedGroup, content: newMessage }),
+      body: JSON.stringify({ senderId: currentSenderId, group: selectedGroup, content: text }),
     });
     
-    setNewMessage("");
-    setShowEmojiPicker(false);
     fetchMessages();
-    simulateRemoteInteraction();
-  };
-
-  const simulateRemoteInteraction = () => {
+    
+    // Simulation
     setTimeout(() => {
-      if (messages.length > 0) {
-        const lastMsgId = messages[messages.length - 1]?._id;
-        if (lastMsgId) setReadReceipts(prev => ({ ...prev, [lastMsgId]: true }));
-      }
       setIsPartnerTyping(true);
       setTimeout(() => { setIsPartnerTyping(false); }, 3000);
     }, 2000);
@@ -292,7 +280,18 @@ export default function Home() {
     fetchMessages();
   };
 
-  // --- DATE & TIME HELPERS ---
+  // --- DATE HELPERS ---
+  const handleDateFilter = (dateStr: string) => {
+    setDateFilter(dateStr);
+    setShowCalendar(false);
+  };
+  
+  const clearDateFilter = () => {
+    setDateFilter(null);
+    setIsAtBottom(true);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+  };
+
   const formatTime = (dateStr: string) => {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -309,35 +308,42 @@ export default function Home() {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const getInitials = (name: string) => name ? name.substring(0, 2).toUpperCase() : "??";
+  // --- CALCULATIONS FOR RENDER ---
   const currentGroupName = groupData.find(g => g.group === selectedGroup)?.name || `Group ${selectedGroup}`;
+  
+  // Filter messages for display
+  const displayMessages = messages.filter(msg => {
+     if (msg.content.startsWith("_")) return false; // Hide system messages from main view (optional)
+     if (dateFilter) return new Date(msg.createdAt).toDateString() === dateFilter;
+     return true;
+  });
 
-  // --- RENDER ---
+  const lastActualMessage = messages[messages.length - 1];
+  const isLastMessageSystem = !dateFilter && lastActualMessage && lastActualMessage.content.startsWith("_");
+
+
+  // ==========================================
+  // 4. RENDER
+  // ==========================================
+
   if (!isAuthorized) {
     return <LoginPage groupData={groupData} isOnline={isOnline} onLoginSuccess={handleLoginSuccess} />;
   }
 
   if (appState === "dashboard") {
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 p-6 relative overflow-hidden font-sans text-white">
-            <MatrixRain />
-            <div className="z-10 w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 text-center animate-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 bg-indigo-500 rounded-full mx-auto flex items-center justify-center text-3xl font-bold mb-6 shadow-lg shadow-indigo-500/40">
-                    {getInitials(userData?.name || "??")}
-                </div>
-                <h2 className="text-3xl font-bold mb-2">Welcome, {userData?.name}</h2>
-                <button onClick={handleEnterChat} className="mt-8 px-12 bg-green-500 hover:bg-green-400 text-white py-4 rounded-2xl font-black text-lg transition-all active:scale-95 shadow-lg shadow-green-500/30 flex items-center justify-center gap-3 mx-auto">
-                    CONNECT & GO ONLINE
-                </button>
-            </div>
-        </div>
-    );
+    return <WelcomeDashboard userData={userData} onEnter={handleEnterChat} />;
   }
-  
-                  const pinnedMessages = messages.filter(m => m.isPinned);
+
   return (
-    <div className="flex h-screen bg-[#F1F5F9] text-slate-900 overflow-hidden font-sans">
-      {!isOnline && <div className="absolute top-0 left-0 w-full bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 z-50 animate-pulse">⚠️ No Internet Connection</div>}
+    <div className="flex h-screen bg-[#001515] text-teal-50 overflow-hidden font-sans">
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar, ::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track, ::-webkit-scrollbar-track { background: #001515; }
+        .custom-scrollbar::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb { background: #0f766e; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:hover { background: #14b8a6; }
+      `}</style>
+
+      {!isOnline && <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest text-center py-1 z-50 animate-pulse shadow-lg shadow-red-900/50">⚠️ No Internet Connection</div>}
 
       <Sidebar 
         viewMode={viewMode} 
@@ -351,128 +357,133 @@ export default function Home() {
         onlineCounts={onlineCounts} 
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-white md:bg-[#F1F5F9]">
-        
+      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-[#001e1e]">
+        {/* BACKGROUND GLOW */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-teal-900/20 via-[#001e1e] to-[#001e1e] pointer-events-none"></div>
+
         {/* HEADER */}
-        <div className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 md:px-6 z-20 sticky top-0 shadow-sm">
+        <div className="h-16 bg-[#001e1e]/80 backdrop-blur-xl border-b border-teal-900/50 flex items-center justify-between px-4 md:px-6 z-20 sticky top-0 shadow-lg shadow-black/20">
           <div className="flex items-center gap-3">
-            <button className="md:hidden p-2 -ml-2 text-slate-600 rounded-lg hover:bg-slate-100" onClick={() => setIsSidebarOpen(true)}>☰</button>
+            <button className="md:hidden p-2 -ml-2 text-teal-400 rounded-lg hover:bg-teal-900/30 transition-colors" onClick={() => setIsSidebarOpen(true)}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
             <div>
-              <h2 className="font-black text-base md:text-lg text-slate-800 tracking-tight leading-none truncate max-w-[150px] md:max-w-none">{currentGroupName}</h2>
-              <div className="flex items-center gap-1 mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${partnerStatus === "online" ? "bg-green-500 animate-pulse" : "bg-red-500"}`}></span>
-                <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest ${partnerStatus === "online" ? "text-green-600" : "text-red-500"}`}>
+              <h2 className="font-black text-base md:text-lg text-white tracking-tight leading-none truncate max-w-[150px] md:max-w-none drop-shadow-md">{currentGroupName}</h2>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${partnerStatus === "online" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse" : "bg-red-500"}`}></span>
+                <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest ${partnerStatus === "online" ? "text-emerald-400" : "text-red-400"}`}>
                     {viewMode === "mentee" 
-                        ? (partnerStatus === "online" ? "MENTOR IS ONLINE" : "MENTOR IS OFFLINE")
+                        ? (partnerStatus === "online" ? "MENTOR ONLINE" : "MENTOR OFFLINE")
                         : (partnerStatus === "online" ? "STUDENT ONLINE" : "STUDENT OFFLINE")
                     }
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex bg-slate-100 p-1 rounded-lg shrink-0">
-              <button onClick={() => setActiveTab("chat")} className={`px-3 md:px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${activeTab === "chat" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>CHAT</button>
-              <button onClick={() => setActiveTab("tickets")} className={`px-3 md:px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${activeTab === "tickets" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>TICKETS</button>
+          
+          <div className="flex items-center gap-2">
+            {activeTab === "chat" && (
+                <button 
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  className={`p-2 rounded-lg transition-all ${showCalendar || dateFilter ? "bg-teal-500 text-white shadow-lg" : "text-teal-400 hover:bg-teal-900/30"}`}
+                  title="View History"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </button>
+            )}
+
+            <div className="flex bg-[#001515] p-1 rounded-xl border border-teal-900/50 shadow-inner">
+                <button onClick={() => setActiveTab("chat")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${activeTab === "chat" ? "bg-teal-600 text-white shadow-lg shadow-teal-900/50" : "text-teal-600/50 hover:text-teal-400 hover:bg-teal-900/30"}`}>CHAT</button>
+                <button onClick={() => setActiveTab("tickets")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black tracking-widest transition-all ${activeTab === "tickets" ? "bg-teal-600 text-white shadow-lg shadow-teal-900/50" : "text-teal-600/50 hover:text-teal-400 hover:bg-teal-900/30"}`}>TICKETS</button>
+            </div>
           </div>
         </div>
+
+        {/* CALENDAR & BANNER */}
+        {showCalendar && (
+            <CalendarView 
+                messages={messages} 
+                onClose={() => setShowCalendar(false)} 
+                onDateSelect={handleDateFilter} 
+            />
+        )}
         
-        {/* PINNED MESSAGES BAR */}
-{activeTab === "chat" && pinnedMessages.length > 0 && (
-  <div className="bg-yellow-50 border-b border-yellow-100 px-4 py-2 flex items-center justify-between z-10 shadow-sm animate-in slide-in-from-top-2">
-    <div className="flex items-center gap-3 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => {
-        // Optional: Logic to scroll to the specific message could go here
-        const id = pinnedMessages[pinnedMessages.length - 1]._id;
-        document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }}>
-      <div className="bg-yellow-100 text-yellow-600 p-1.5 rounded-full shrink-0 text-xs">
-        📌
-      </div>
-      <div className="flex flex-col min-w-0">
-        <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-wider">
-          {pinnedMessages.length} Pinned {pinnedMessages.length === 1 ? 'Message' : 'Messages'}
-        </span>
-        <span className="text-xs text-slate-700 truncate font-medium max-w-[250px] md:max-w-md leading-tight">
-          {pinnedMessages[pinnedMessages.length - 1].content}
-        </span>
-      </div>
-    </div>
-    
-    {/* Unpin Button */}
-    <button 
-      onClick={(e) => {
-        e.stopPropagation();
-        togglePin(pinnedMessages[pinnedMessages.length - 1]._id, true);
-      }} 
-      className="p-2 text-slate-400 hover:text-red-500 hover:bg-white rounded-full transition-all"
-    >
-      ✕
-    </button>
-  </div>
-)}
+        {dateFilter && activeTab === "chat" && (
+            <div className="bg-[#115e59] border-b border-teal-400/30 px-4 py-3 flex items-center justify-between z-20 shadow-xl animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-2 text-white">
+                    <svg className="w-5 h-5 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span className="text-xs font-bold uppercase tracking-widest">Viewing History: {formatDateHeader(dateFilter)}</span>
+                </div>
+                <button 
+                    onClick={clearDateFilter}
+                    className="bg-white text-teal-900 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg"
+                >
+                    Back to Present
+                </button>
+            </div>
+        )}
 
         {/* CONTENT AREA */}
-        <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar relative z-0">
+          
           {activeTab === "chat" ? (
             <div className="max-w-4xl mx-auto pb-4">
-              {messages.map((msg: any, index: number) => {
+              
+              {displayMessages.length === 0 && dateFilter ? (
+                  <div className="text-center py-20 opacity-50">
+                      <p className="text-teal-400 font-mono text-sm">No messages found for this date.</p>
+                  </div>
+
+                  /* 2. NEW CASE: No messages at all (Empty Chat) */
+  ) : displayMessages.length === 0 ? (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center opacity-60 animate-in fade-in zoom-in duration-700">
+          <div className="w-16 h-16 rounded-full bg-teal-900/30 flex items-center justify-center mb-4 border border-teal-500/20">
+              <svg className="w-8 h-8 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+          </div>
+          <h3 className="text-teal-100 font-bold text-lg tracking-wide mb-2">Secure Channel Established</h3>
+          <p className="text-teal-500 text-xs uppercase tracking-widest max-w-xs">
+              No prior transmission history. <br/> Initialize session to begin logging.
+          </p>
+      </div>
+              ) : (
+                displayMessages.map((msg: any, index: number) => {
                   const isMe = msg.senderId._id === (viewMode === "mentor" ? MENTOR_ID : userData?._id);
-                  const isSystemMessage = msg.content.startsWith("_") && msg.content.endsWith("_");
-                  
-                  // DATE HEADER LOGIC
                   const currentDate = msg.createdAt ? new Date(msg.createdAt).toDateString() : null;
-                  const prevDate = index > 0 && messages[index - 1].createdAt ? new Date(messages[index - 1].createdAt).toDateString() : null;
-                  const showDateHeader = currentDate !== prevDate;
-
+                  const prevDate = index > 0 && displayMessages[index - 1].createdAt ? new Date(displayMessages[index - 1].createdAt).toDateString() : null;
+                  
                   return (
-                    <div key={msg._id || index} id={`msg-${msg._id}`}>
-                      {/* --- DATE SEPARATOR --- */}
-                      {showDateHeader && msg.createdAt && (
-                        <div className="w-full flex justify-center my-6">
-                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
-                            {formatDateHeader(msg.createdAt)}
-                          </span>
-                        </div>
-                      )}
-
-                      {isSystemMessage ? (
-                        <div className="w-full flex flex-col items-center justify-center my-4 animate-in fade-in duration-300">
-                          <div className="bg-slate-50 border border-slate-100 px-4 py-1.5 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                             {msg.content.replace(/_/g, "")}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                          <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                            {!isMe && <span className="text-[10px] font-bold text-slate-400 mb-1 ml-1">{msg.senderId.name}</span>}
-                            
-                            <div className={`flex items-end gap-2 max-w-[85%] group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                              <div className={`relative px-4 py-3 shadow-sm text-sm leading-relaxed break-all whitespace-pre-wrap ${isMe ? "bg-indigo-600 text-white rounded-[20px] rounded-br-sm" : "bg-white border border-slate-100 text-slate-800 rounded-[20px] rounded-bl-sm"} ${msg.isPinned ? "ring-2 ring-yellow-400 ring-offset-2" : ""}`}>
-                                
-                                {msg.content}
-                                
-                                {/* --- TIMESTAMP --- */}
-                                <div className={`text-[9px] mt-1 text-right font-medium opacity-70 ${isMe ? "text-indigo-200" : "text-slate-400"}`}>
-                                    {formatTime(msg.createdAt || new Date().toISOString())}
-                                </div>
-
-                                {/* --- PIN BUTTON (UPDATED) --- */}
-                                <button onClick={() => togglePin(msg._id, msg.isPinned)} className={`absolute -top-2 ${isMe ? '-left-2' : '-right-2'} p-1 bg-white rounded-full shadow-md text-xs border border-slate-100 transition-all z-10 ${msg.isPinned ? 'opacity-100 scale-100' : 'opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100'}`}>
-                                   {msg.isPinned ? '📌' : '📍'}
-                                </button>
-
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <MessageBubble 
+                      key={msg._id || index}
+                      msg={msg}
+                      isMe={isMe}
+                      onTogglePin={togglePin}
+                      showDateHeader={currentDate !== prevDate}
+                      formatDateHeader={formatDateHeader}
+                      formatTime={formatTime}
+                    />
                   );
-                })}
-              {isPartnerTyping && <span className="text-xs text-slate-400 ml-4">Typing...</span>}
+                })
+              )}
+
+              {/* DYNAMIC SYSTEM STATUS */}
+              {isLastMessageSystem && (
+                  <div className="w-full flex justify-center mt-6 mb-2 animate-in fade-in zoom-in duration-300">
+                     <div className="bg-[#002b2b]/80 border border-teal-500/30 px-4 py-1.5 rounded-full text-[10px] font-bold text-teal-300 uppercase tracking-widest shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+                        {lastActualMessage.content.replace(/_/g, "")}
+                     </div>
+                  </div>
+              )}
+
+              {isPartnerTyping && !dateFilter && (
+                  <div className="flex items-center gap-2 ml-4 mt-2 animate-pulse">
+                      <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+                      <div className="w-2 h-2 bg-teal-500 rounded-full delay-75"></div>
+                      <div className="w-2 h-2 bg-teal-500 rounded-full delay-150"></div>
+                  </div>
+              )}
               <div ref={messagesEndRef} className="h-4" />
             </div>
           ) : (
-            // --- TICKET COMPONENT ---
             <TicketSystem 
               group={selectedGroup} 
               viewMode={viewMode} 
@@ -482,26 +493,13 @@ export default function Home() {
           )}
         </div>
 
-        {/* INPUT AREA (ONLY FOR CHAT) */}
+        {/* INPUT AREA */}
         {activeTab === "chat" && (
-          <div className="p-4 md:p-6 pt-2 bg-gradient-to-t from-white via-white to-transparent sticky bottom-0 z-30">
-            {showEmojiPicker && (
-              <div className="absolute bottom-24 left-6 bg-white border border-slate-200 p-4 rounded-3xl shadow-xl w-72 animate-in zoom-in-95 z-50">
-                {Object.entries(emojiCategories).map(([cat, list]) => (
-                  <div key={cat} className="mb-3">
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">{cat}</p>
-                    <div className="grid grid-cols-6 gap-1">{list.map(e => <button key={e} onClick={() => {setNewMessage(p => p+e); setShowEmojiPicker(false);}} className="text-xl hover:bg-indigo-50 p-1 rounded transition-colors">{e}</button>)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto flex items-end gap-2 bg-white p-2 rounded-[28px] shadow-2xl border border-slate-100 ring-4 ring-slate-50">
-              <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-3.5 rounded-full text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all">☺</button>
-              <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} disabled={!isOnline} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); }}} className="flex-1 max-h-32 min-h-[50px] py-3.5 px-2 bg-transparent text-sm font-medium text-slate-700 outline-none resize-none placeholder-slate-400" placeholder="Type message..." />
-              <button disabled={!isOnline || !newMessage.trim()} className="p-3.5 bg-indigo-600 rounded-full text-white shadow-lg hover:bg-indigo-500 transition-all">➤</button>
-            </form>
-          </div>
+            <ChatInput 
+                onSendMessage={onSendMessageWrapper} 
+                isOnline={isOnline} 
+                isFiltered={!!dateFilter}
+            />
         )}
       </div>
     </div>

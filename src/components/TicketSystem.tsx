@@ -16,7 +16,7 @@ interface Ticket {
   description: string;
   status: "OPEN" | "RESOLVED";
   createdAt: string;
-  replies?: Reply[]; // Made optional to prevent TS errors
+  replies?: Reply[]; 
   createdBy: { name: string; _id: string };
 }
 
@@ -102,7 +102,7 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
     if (!text || !text.trim()) return;
 
     const replyData = {
-      sender: viewMode === "mentor" ? "JJ" : "Student", 
+      sender: viewMode === "mentor" ? "Mentor" : "Student", 
       role: viewMode,
       content: text,
     };
@@ -144,15 +144,15 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
     });
 
   return (
-    <div className="max-w-4xl mx-auto pb-20">
+    <div className="max-w-4xl mx-auto pb-20 text-teal-50">
       
       {/* CONTROLS HEADER */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex gap-2 w-full md:w-auto">
+      <div className="mb-6 flex flex-col md:flex-row gap-4 justify-between items-center bg-[#002b2b]/40 backdrop-blur-md p-4 rounded-2xl shadow-lg shadow-black/20 border border-teal-900/50">
+        <div className="flex gap-3 w-full md:w-auto">
           <select 
             value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="bg-slate-50 border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-[#001515] border border-teal-800 text-xs font-bold uppercase tracking-wider text-teal-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500/50 hover:border-teal-600 transition-colors"
           >
             <option value="ALL">All Tickets</option>
             <option value="OPEN">Open Only</option>
@@ -162,7 +162,7 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
           <select 
             value={sortOrder} 
             onChange={(e) => setSortOrder(e.target.value as any)}
-            className="bg-slate-50 border border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-[#001515] border border-teal-800 text-xs font-bold uppercase tracking-wider text-teal-400 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500/50 hover:border-teal-600 transition-colors"
           >
             <option value="desc">Newest First</option>
             <option value="asc">Oldest First</option>
@@ -171,31 +171,32 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
 
         <button 
           onClick={() => setShowForm(!showForm)} 
-          className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+          className="w-full md:w-auto bg-gradient-to-r from-teal-500 to-emerald-600 hover:brightness-110 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-teal-900/40 transition-all active:scale-95 flex items-center justify-center gap-2"
         >
-          {showForm ? "Cancel" : "+ New Ticket"}
+          {showForm ? "Cancel" : <span>+ <span className="hidden sm:inline">New Ticket</span></span>}
         </button>
       </div>
 
       {/* CREATE FORM */}
       {showForm && (
-        <form onSubmit={handleCreateTicket} className="mb-8 bg-white p-6 rounded-2xl shadow-xl border border-indigo-100 animate-in slide-in-from-top-4">
+        <form onSubmit={handleCreateTicket} className="mb-8 bg-[#001e1e] p-6 rounded-2xl shadow-2xl border border-teal-800/50 animate-in slide-in-from-top-4 backdrop-blur-xl">
           <input
-            className="w-full text-lg font-bold placeholder-slate-300 border-none focus:ring-0 px-0 mb-2 text-slate-800"
+            className="w-full text-lg font-bold placeholder-teal-800 bg-transparent border-none focus:ring-0 px-0 mb-2 text-white outline-none"
             placeholder="Ticket Title..."
             value={newTicket.title}
             onChange={(e) => setNewTicket({...newTicket, title: e.target.value})}
             required
           />
+          <div className="h-px w-full bg-gradient-to-r from-teal-900 to-transparent mb-4"></div>
           <textarea
-            className="w-full min-h-[100px] bg-slate-50 p-4 rounded-xl text-sm text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+            className="w-full min-h-[100px] bg-[#001515] p-4 rounded-xl text-sm text-teal-100 placeholder-teal-800/70 border border-teal-900/50 outline-none focus:ring-2 focus:ring-teal-500/30 resize-none transition-all"
             placeholder="Describe your academic issue in detail..."
             value={newTicket.description}
             onChange={(e) => setNewTicket({...newTicket, description: e.target.value})}
             required
           />
           <div className="mt-4 flex justify-end">
-            <button type="submit" className="bg-black text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-colors">
+            <button type="submit" className="bg-teal-700 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-teal-600 transition-all shadow-md">
               Submit Request
             </button>
           </div>
@@ -205,16 +206,20 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
       {/* TICKET LIST */}
       <div className="space-y-4">
         {loading ? (
-           <div className="text-center py-10 text-slate-400 animate-pulse text-xs font-bold uppercase tracking-widest">Loading Tickets...</div>
+           <div className="text-center py-12 flex flex-col items-center gap-3">
+               <div className="w-8 h-8 border-4 border-teal-900 border-t-teal-500 rounded-full animate-spin"></div>
+               <span className="text-teal-500/50 text-xs font-bold uppercase tracking-widest animate-pulse">Loading Tickets...</span>
+           </div>
         ) : filteredTickets.length === 0 ? (
-           <div className="text-center py-10 text-slate-400 text-sm">No tickets found matching your filters.</div>
+           <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+               <p className="text-teal-500/50 text-sm font-medium">No tickets found matching your filters.</p>
+           </div>
         ) : (
           filteredTickets.map((ticket) => {
-            // SAFE ACCESS: If replies is undefined, treat it as empty array
             const replies = ticket.replies || [];
             
             return (
-            <div key={ticket._id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
+            <div key={ticket._id} className="group bg-white/5 backdrop-blur-sm rounded-2xl border border-white/5 hover:border-teal-500/30 shadow-lg shadow-black/10 hover:shadow-teal-900/20 transition-all overflow-hidden">
               
               {/* Ticket Header */}
               <div 
@@ -222,30 +227,29 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
                 className="p-5 cursor-pointer flex flex-col md:flex-row gap-4 md:items-center justify-between"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${
                       ticket.status === "RESOLVED" 
-                        ? "bg-slate-100 text-slate-500" 
-                        : "bg-emerald-100 text-emerald-600"
+                        ? "bg-teal-950/50 text-teal-600 border-teal-900" 
+                        : "bg-emerald-950/30 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(52,211,153,0.1)]"
                     }`}>
                       {ticket.status}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400">
+                    <span className="text-[10px] font-bold text-teal-700">
                       #{ticket._id.slice(-6).toUpperCase()}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-teal-600/70">
                       {formatDate(ticket.createdAt)}
                     </span>
                   </div>
-                  <h3 className="text-base font-bold text-slate-800 truncate">{ticket.title}</h3>
+                  <h3 className={`text-base font-bold truncate transition-colors ${ticket.status === 'RESOLVED' ? 'text-teal-500/50' : 'text-teal-100 group-hover:text-white'}`}>{ticket.title}</h3>
                 </div>
                 
                 <div className="flex items-center gap-2 self-end md:self-center">
-                    <span className="text-xs text-slate-400 font-medium mr-2">
-                        {/* FIX: Safe access for length */}
-                        {replies.length} replies
+                    <span className="text-xs text-teal-600 font-bold uppercase tracking-wider mr-2 bg-[#001515] px-2 py-1 rounded-md border border-teal-900/50">
+                        {replies.length} {replies.length === 1 ? 'Reply' : 'Replies'}
                     </span>
-                    <div className="text-indigo-300 group-hover:text-indigo-500 transition-colors">
+                    <div className="text-teal-500 group-hover:text-emerald-400 transition-colors bg-teal-900/20 p-2 rounded-full">
                         {expandingTicketId === ticket._id ? "▼" : "▶"}
                     </div>
                 </div>
@@ -253,39 +257,42 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
 
               {/* Ticket Details (Expanded) */}
               {expandingTicketId === ticket._id && (
-                <div className="bg-slate-50/50 border-t border-slate-100 p-5 animate-in slide-in-from-top-2">
+                <div className="bg-[#001515]/60 border-t border-teal-900/50 p-5 animate-in slide-in-from-top-2">
                   {/* Description Box */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 mb-6 shadow-sm">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Description</p>
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words">
+                  <div className="bg-[#001e1e] p-4 rounded-xl border border-teal-900/50 mb-6 shadow-inner relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-teal-800"></div>
+                    <p className="text-[9px] font-black text-teal-600 uppercase tracking-widest mb-2">Description</p>
+                    <p className="text-sm text-teal-200/80 leading-relaxed whitespace-pre-wrap break-words font-medium">
                       {ticket.description}
                     </p>
                   </div>
 
                   {/* Replies List */}
-                  <div className="space-y-4 mb-6">
-                    {/* FIX: Mapping over safe `replies` variable */}
+                  <div className="space-y-4 mb-6 relative">
+                    {/* Vertical Line Connector */}
+                    {replies.length > 0 && <div className="absolute left-4 top-0 bottom-0 w-px bg-teal-900/30 -z-10 md:hidden"></div>}
+
                     {replies.map((reply) => (
                       <div key={reply._id} className={`flex ${reply.role === viewMode ? "justify-end" : "justify-start"}`}>
-                        <div className={`max-w-[85%] ${reply.role === viewMode ? "items-end" : "items-start"} flex flex-col`}>
+                        <div className={`max-w-[85%] flex flex-col ${reply.role === viewMode ? "items-end" : "items-start"}`}>
                             
                             <div className="flex items-center gap-2 mb-1 px-1">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase">{reply.sender}</span>
-                                <span className="text-[9px] text-slate-400">{formatDate(reply.createdAt)}</span>
+                                <span className="text-[9px] font-black text-teal-500 uppercase tracking-wider">{reply.sender}</span>
+                                <span className="text-[9px] text-teal-700 font-mono">{formatDate(reply.createdAt)}</span>
                             </div>
 
-                            <div className={`p-4 rounded-2xl text-sm whitespace-pre-wrap break-words shadow-sm border relative group/reply ${
+                            <div className={`p-4 rounded-2xl text-sm whitespace-pre-wrap break-words shadow-lg border relative group/reply transition-all ${
                                 reply.role === "mentor" 
-                                    ? "bg-white-600 text-black border-slate-600 rounded-tl-none" 
-                                    : "bg-white text-indigo-700 border-indigo-200 rounded-tr-none"
+                                    ? "bg-gradient-to-br from-teal-700 to-teal-800 text-white border-teal-600/30 rounded-br-none" 
+                                    : "bg-[#002b2b] text-teal-100 border-teal-800/50 rounded-bl-none"
                             }`}>
                                 {reply.content}
                                 
-                                {/* Delete Reply Button (Only for your own replies) */}
+                                {/* Delete Reply Button */}
                                 {reply.role === viewMode && (
                                     <button 
                                         onClick={() => handleDeleteReply(ticket._id, reply._id)}
-                                        className="absolute -top-2 -right-2 bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-0 group-hover/reply:opacity-100 transition-opacity shadow-md"
+                                        className="absolute -top-2 -right-2 bg-red-900/80 hover:bg-red-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs opacity-0 group-hover/reply:opacity-100 transition-all shadow-md border border-red-500/30"
                                         title="Delete Reply"
                                     >
                                         ×
@@ -299,42 +306,42 @@ export default function TicketSystem({ group, viewMode, userId, isOnline }: Tick
 
                   {/* Reply Input */}
                   {ticket.status === "OPEN" ? (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-3 pt-4 border-t border-teal-900/30">
                       <textarea
                         value={replyText[ticket._id] || ""}
                         onChange={(e) => setReplyText({ ...replyText, [ticket._id]: e.target.value })}
                         placeholder="Type a reply..."
-                        className="w-full p-3 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none text-sm min-h-[80px]"
+                        className="w-full p-3 rounded-xl bg-[#001e1e] border border-teal-800 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 outline-none text-sm min-h-[80px] text-teal-100 placeholder-teal-800 transition-all shadow-inner"
                       />
                       <div className="flex justify-between items-center">
-                         <div className="flex gap-2">
+                          <div className="flex gap-4">
                              {(viewMode === "mentor" || ticket.createdBy._id === userId) && (
                                  <button 
                                    onClick={() => toggleStatus(ticket._id)}
-                                   className="text-xs font-bold text-emerald-600 hover:text-emerald-500 transition-colors"
+                                   className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-colors flex items-center gap-1"
                                  >
-                                    ✓ Mark as Resolved
+                                   <span className="text-lg leading-none">✓</span> Mark Resolved
                                  </button>
                              )}
                              {(viewMode === "mentor" || ticket.createdBy._id === userId) && (
-                                <button onClick={() => deleteTicket(ticket._id)} className="text-xs font-bold text-red-400 hover:text-red-500 transition-colors">
-                                  ✗ Delete Ticket
+                                <button onClick={() => deleteTicket(ticket._id)} className="text-[10px] font-bold text-red-500/70 hover:text-red-400 uppercase tracking-widest transition-colors flex items-center gap-1">
+                                  <span className="text-lg leading-none">×</span> Delete
                                 </button>
                              )}
-                         </div>
-                         <button 
+                          </div>
+                          <button 
                             onClick={() => handleReply(ticket._id)}
                             disabled={!replyText[ticket._id]?.trim()}
-                            className="bg-indigo-600 disabled:bg-slate-300 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20 hover:shadow-xl transition-all"
-                         >
-                            Reply
-                         </button>
+                            className="bg-teal-600 disabled:bg-teal-900/50 disabled:text-teal-700 text-white px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest shadow-lg shadow-teal-900/50 hover:bg-teal-500 hover:scale-105 transition-all"
+                          >
+                            Send Reply
+                          </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-4 bg-slate-100 rounded-xl border border-slate-200">
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">This ticket is resolved</p>
-                        <button onClick={() => toggleStatus(ticket._id)} className="text-xs text-indigo-500 font-bold hover:underline">Re-open Ticket</button>
+                    <div className="text-center py-4 bg-teal-900/20 rounded-xl border border-teal-900/50 dashed-border">
+                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-2">This ticket is resolved</p>
+                        <button onClick={() => toggleStatus(ticket._id)} className="text-xs text-emerald-500 font-bold hover:text-emerald-400 hover:underline transition-colors">Re-open Ticket</button>
                     </div>
                   )}
                 </div>

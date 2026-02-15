@@ -22,7 +22,6 @@ const UserSchema = new Schema(
     group: {
       type: Number, 
       min: 0,
-      max: 11,
     },
     accessKey: { type: String, default: "1234" },
 
