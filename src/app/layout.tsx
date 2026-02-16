@@ -25,15 +25,16 @@ export const viewport: Viewport = {
 
 // 2. METADATA & IOS CONFIGURATION
 export const metadata: Metadata = {
-  title: "HUDDLE", // Updated title
+  title: "Huddle",
   description: "Instant Academic Support",
-  manifest: "/manifest.json", // Link to your PWA manifest
+  manifest: "/manifest.json",
 
-  // iOS Specific Settings (The "Magic" for iPhones)
   appleWebApp: {
-    capable: true, // Enables standalone mode (removes browser bars)
-    title: "Huddle", // Updated App Title
-    statusBarStyle: "black-translucent", // Merges status bar with app bg
+    capable: true,
+    title: "Huddle",
+    // CHANGE THIS: 'default' pushes your content down automatically.
+    // It creates a solid bar matching your theme color instead of transparent.
+    statusBarStyle: "default", 
   },
 
   // App Icons
@@ -52,8 +53,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        // Added 'pt-[env(safe-area-inset-top)]' to prevent content hiding behind the notch
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pt-[env(safe-area-inset-top)] bg-[#004d4d] text-white`}
+        // REMOVE 'pt-[env(safe-area-inset-top)]' here if you use 'default' style
+        // because iOS handles the spacing for you.
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#004d4d] text-white`}
         suppressHydrationWarning={true}
         style={{
           // Define global CSS variables for the new theme

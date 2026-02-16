@@ -1,4 +1,5 @@
 import mongoose, { Schema, model, models } from "mongoose";
+import { unique } from "next/dist/build/utils";
 
 const UserSchema = new Schema(
   {
@@ -10,6 +11,8 @@ const UserSchema = new Schema(
       type: String,
       // Change required to false if some groups don't have unique emails yet
       required: false, 
+      unique: true,
+      sparse: true, // Allows multiple documents with null email
     },
     role: {
       type: String,

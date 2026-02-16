@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-// Keep your relative paths if that's how your folder structure is set up
 import connectToDB from "../../../lib/db"; 
 import User from "../../../models/User";
 
@@ -7,7 +6,6 @@ import User from "../../../models/User";
 export async function GET() {
   try {
     await connectToDB();
-    // Fetch all users, sorted by group number
     const users = await User.find({}).sort({ group: 1 });
     return NextResponse.json(users);
   } catch (error) {
@@ -21,6 +19,18 @@ export async function POST(req: Request) {
     await connectToDB();
     const body = await req.json();
     const { group, name, accessKey, _id } = body;
+
+    // --- TEMPORARY FIX: Drop the bad index ---
+    // This tells MongoDB to delete the old "email must be unique" rule 
+    // that is causing the error.
+    try {
+      await User.collection.dropIndex("email_1");
+      console.log("FIX APPLIED: Old email index dropped successfully.");
+    } catch (e: any) {
+      // If the index is already gone, we ignore the error and keep going.
+      // This prevents the app from crashing if you run this twice.
+    }
+    // ------------------------------------------
 
     // 1. Check if ID exists (if manually provided)
     if (_id) {
@@ -42,11 +52,15 @@ export async function POST(req: Request) {
     }
 
     // 3. Create the new User
+    // Now that the index is dropped (or your model is updated to sparse), 
+    // this will allow multiple users to have 'null' emails.
     const newUser = await User.create({ _id, group, name, accessKey });
+    
     return NextResponse.json(newUser);
 
   } catch (error: any) {
     console.error("Create failed:", error);
+    // Return the actual error message so you can see it in the UI
     return NextResponse.json({ error: error.message || "Failed to create user" }, { status: 500 });
   }
 }
@@ -57,7 +71,6 @@ export async function PATCH(req: Request) {
     await connectToDB();
     const { groupId, newName, newKey } = await req.json();
 
-    // Prepare update object dynamically
     const updateData: any = {};
     if (newName) updateData.name = newName;
     if (newKey) updateData.accessKey = newKey;
@@ -66,11 +79,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No changes provided" }, { status: 400 });
     }
 
-    // Find by ID and update
     const updated = await User.findByIdAndUpdate(
       groupId, 
       updateData, 
-      { new: true } // Return the updated document
+      { new: true } 
     );
 
     if (!updated) {

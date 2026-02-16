@@ -104,7 +104,7 @@ export default function LoginPage({ groupData, isOnline, onLoginSuccess }: Login
                     value={enteredKey} 
                     onChange={(e) => setEnteredKey(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
-                    placeholder="ACCESS CODE"
+                    placeholder="CODE"
                     className="w-full bg-[#001010]/80 text-teal-50 text-center text-2xl font-bold tracking-widest py-6 px-4 rounded-xl border border-teal-900/30 focus:border-teal-500/50 outline-none transition-all focus:ring-4 focus:ring-teal-500/10 placeholder-teal-800/30 shadow-inner"
                   />
                   <button 
